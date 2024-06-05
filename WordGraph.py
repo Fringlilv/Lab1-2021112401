@@ -1,10 +1,14 @@
+"""
+实现WordGraph功能
+"""
+import queue
+import random
 import string
-import networkx as nx
-import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import filedialog
-import random
-import queue
+
+import matplotlib.pyplot as plt
+import networkx as nx
 
 
 def openfile():
@@ -22,6 +26,8 @@ def savefile():
 
 
 class Edge:
+    """有向边的数据结构"""
+
     def __init__(self, start, end, weight: int):
         self.start = start
         self.end = end
@@ -68,24 +74,28 @@ class Graph:
 
 
 class WordGraph:
+    """
+    实现WordGraph功能的类，包括生成图，查询桥接词，生成新文本，计算最短路径，随机游走
+    """
+
     def __init__(self):
         self.graph = Graph()
 
     def generateGraph(self, filepath):
         """用户选择文件，根据文件生成图，保存在self.graph"""
         # 将句子去除标点并划分为token
-        tokens = list()
-        lines = open(filepath, encoding='utf-8').readlines()
-        for i in range(len(lines)):
-            for piece in lines[i]:
-                if piece in string.punctuation:
-                    # 遍历每个句子的每个字母，如果发现是标点（在string.punctuation）中就替换为空格
-                    lines[i] = lines[i].replace(piece, " ")
-            tokens = tokens + lines[i].split()
+        tokens = []
+        with open(filepath, encoding='utf-8') as file:
+            lines = file.readlines()
+            for i, line in enumerate(lines):
+                for piece in line:
+                    if piece in string.punctuation:
+                        # 遍历每个句子的每个字母，如果发现是标点（在string.punctuation中）就替换为空格
+                        lines[i] = lines[i].replace(piece, " ")
+                tokens += lines[i].split()
 
         # token转小写
-        for i in range(len(tokens)):
-            tokens[i] = tokens[i].lower()
+        tokens = [token.lower() for token in tokens]
 
         # 将token加入图
         for i in range(len(tokens) - 1):
@@ -94,13 +104,12 @@ class WordGraph:
     def showDirectedGraph(self):
         """画self.graph"""
         g = nx.DiGraph()  # 有向图
-        g.add_nodes_from(node for node in self.graph.vertex_dict.keys())
-        for i in self.graph.vertex_dict.values():
-            i_start_edges = self.graph.edge_list[int(i)]
-            for node_end, j in self.graph.vertex_dict.items():
-                for edge in i_start_edges:
-                    if edge.end == node_end:
-                        g.add_edge(edge.start, edge.end, weight=edge.weight)
+        # 添加顶点和边
+        for vertex in self.graph.vertex_dict:
+            g.add_node(vertex)
+        for start in self.graph.vertex_dict:
+            for edge in self.graph.getEdgeList(start):
+                g.add_edge(edge.start, edge.end, weight=edge.weight)
 
         pos = nx.spring_layout(g, iterations=20)
         weights = nx.get_edge_attributes(g, "weight")
@@ -122,7 +131,7 @@ class WordGraph:
         if self.graph.getEdgeList(word2) is None:
             return -2
 
-        bridge_words = list()
+        bridge_words = []
         for edge_1 in self.graph.getEdgeList(word1):
             word3 = edge_1.end
             for edge_3 in self.graph.getEdgeList(word3):
@@ -131,8 +140,7 @@ class WordGraph:
 
         if len(bridge_words) == 0:
             return -3
-        else:
-            return bridge_words
+        return bridge_words
 
     def generateNewText(self, line):
         """根据bridge word生成新文本"""
@@ -144,15 +152,14 @@ class WordGraph:
         tokens = line.split()
 
         # token转小写
-        for i in range(len(tokens)):
-            tokens[i] = tokens[i].lower()
+        tokens = [token.lower() for token in tokens]
 
         # 查桥接词，查到就放到新文本tokens列表中的对应位置
         for i in range(len(tokens) - 1):
             bridge_words = self.queryBridgeWords(tokens[i], tokens[i + 1])
             if bridge_words not in [-1, -2, -3]:
-                for j in range(len(bridge_words)):
-                    tokens.insert(i + j + 1, bridge_words[j])
+                for bw, j in enumerate(bridge_words):
+                    tokens.insert(i + j + 1, bw)
 
         # 将tokens列表合并为一个句子
         sentence = str()
@@ -162,7 +169,7 @@ class WordGraph:
         return sentence
 
     def calcShortestPath(self, word1: str, word2: str):
-        # 堆优化Dijkstra
+        """堆优化Dijkstra"""
         word1 = word1.lower()
         dis = [1e9] * len(self.graph.vertex_dict)
         dis[self.graph.vertex_dict[word1]] = 0
@@ -170,21 +177,23 @@ class WordGraph:
         q = queue.PriorityQueue()
         q.put((0, word1))
         while not q.empty():
-            d, u = q.get()
+            u = q.get()[1]
             if vis[self.graph.vertex_dict[u]]:
                 continue
             vis[self.graph.vertex_dict[u]] = True
             for edge in self.graph.getEdgeList(u):
-                if dis[self.graph.vertex_dict[edge.end]] > dis[self.graph.vertex_dict[u]] + edge.weight:
-                    dis[self.graph.vertex_dict[edge.end]] = dis[self.graph.vertex_dict[u]] + edge.weight
+                if dis[self.graph.vertex_dict[edge.end]] > \
+                        dis[self.graph.vertex_dict[u]] + edge.weight:
+                    dis[self.graph.vertex_dict[edge.end]
+                        ] = dis[self.graph.vertex_dict[u]] + edge.weight
                     q.put((dis[self.graph.vertex_dict[edge.end]], edge.end))
         if word2 is None:
             return dis
-        else:
-            word2 = word2.lower()
-            return dis[self.graph.vertex_dict[word2]]
+        word2 = word2.lower()
+        return dis[self.graph.vertex_dict[word2]]
 
     def randomWalk(self):
+        """随机游走，返回随机游走的路径"""
         start = random.choice(list(self.graph.vertex_dict.keys()))
         ret = start
         edge_tmp = []
@@ -204,6 +213,9 @@ class WordGraph:
 
 
 def main():
+    """
+    主函数，实现WordGraph功能
+    """
     f = WordGraph()
 
     # generateGraph
@@ -218,7 +230,7 @@ def main():
         if a == '1':
             # showDirectedGraph
             f.showDirectedGraph()
-        elif  a == '2':
+        elif a == '2':
             # queryBridgeWords
             word_1 = input('input word1:')
             word_2 = input('input word2:')
@@ -230,22 +242,23 @@ def main():
             elif bridge_words == -3:
                 print("No bridge words from word1 to word2")
             else:
-                print(f"The bridge words from word1 to word2 are {bridge_words}")
+                print(
+                    f"The bridge words from word1 to word2 are {bridge_words}")
         elif a == '3':
             # generateNewText
             line = input("Input text:")
             new_sentence = f.generateNewText(line)
             print(new_sentence)
-        elif  a == '4':
+        elif a == '4':
             # calcShortestPath
             line = input('calcShortestPath: input 1 or 2 word(s):')
             words = line.split()
             if len(words) == 1:
                 r = f.calcShortestPath(words[0], None)
                 print('Distance from', words[0], 'to other words:')
-                for i in range(len(r)):
-                    print(list(f.graph.vertex_dict.keys())[
-                          i], '\t:', r[i] == 1e9 and 'No path' or r[i])
+                for dis, i in enumerate(r):
+                    print(list(f.graph.vertex_dict)[
+                          i], '\t:', dis == 1e9 and 'No path' or dis)
             elif len(words) == 2:
                 r = f.calcShortestPath(words[0], words[1])
                 print('Distance from', words[0], 'to',
@@ -258,7 +271,7 @@ def main():
             print('Random walk:', rw)
             f = savefile()
             if f != '':
-                with open(f, 'w') as file:
+                with open(f, 'w', encoding='utf-8') as file:
                     file.write(rw)
         else:
             break
@@ -266,10 +279,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# S2R5
-# R2后的修改
-# R4后的修改
-s2r7 = 'B2'
-# S2R4
-# IDE Plugin

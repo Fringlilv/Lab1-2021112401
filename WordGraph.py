@@ -121,6 +121,10 @@ class WordGraph:
 
     def queryBridgeWords(self, word1: str, word2: str):
         """查询word1到word2之间的桥接词"""
+
+        if not isinstance(word1, str) or not isinstance(word2, str):
+            return -4
+
         # 转小写
         word1 = word1.lower()
         word2 = word2.lower()
